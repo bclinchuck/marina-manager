@@ -1,8 +1,8 @@
 let gameState = {
     day: 1,
     money: 1000,
-    timeMinutes: 480, // 8:00 AM in minutes (8 * 60)
-    maxTimeMinutes: 1200, // 8:00 PM (20 * 60)
+    timeMinutes: 480,       // 8:00 AM in minutes
+    maxTimeMinutes: 1200,   // 8:00 PM in minutes
     incomingQueue: [],
     slips: [
         { id: 1, maxLoa: 50, maxBeam: 16, occupiedBy: null },
@@ -12,7 +12,6 @@ let gameState = {
     isPaused: false
 };
 
-// Start Game Loop
 window.onload = () => {
     initDay();
     requestAnimationFrame(gameLoop);
@@ -20,7 +19,6 @@ window.onload = () => {
 
 function initDay() {
     gameState.timeMinutes = 480;
-    // Generate boats for the day based on day number
     const boatCount = 3 + gameState.day * 2;
     gameState.incomingQueue = [];
     
@@ -38,8 +36,8 @@ function initDay() {
 
 function gameLoop() {
     if (!gameState.isPaused) {
-        // Advance time (1 real second = 10 game minutes)
-        gameState.timeMinutes += 0.5; 
+        // Slower time progression: 0.15 minutes per frame gives a comfortable pace
+        gameState.timeMinutes += 0.15; 
         
         if (gameState.timeMinutes >= gameState.maxTimeMinutes) {
             endDay();
@@ -78,7 +76,15 @@ function renderIncoming() {
         const card = document.createElement('div');
         card.className = 'boat-card';
         card.draggable = true;
-        card.innerHTML = `<strong>${boat.name}</strong><br>LOA: ${boat.loa}ft | Beam: ${boat.beam}ft`;
+        
+        // Styled like a boat profile
+        card.innerHTML = `
+            <div class="boat-header">
+                <span class="boat-title">🛥️ ${boat.name}</span>
+                <span style="color: #38bdf8; font-size: 0.8rem; font-weight: bold;">$${boat.fee}</span>
+            </div>
+            <div class="boat-specs">LOA: ${boat.loa} ft | Beam: ${boat.beam} ft</div>
+        `;
         
         card.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('text/plain', boat.id);
@@ -98,9 +104,18 @@ function renderSlips() {
         div.className = `slip ${slip.occupiedBy ? 'occupied' : ''}`;
         
         if (slip.occupiedBy) {
-            div.innerHTML = `<strong>Slip ${slip.id}</strong><br>${slip.occupiedBy.name}<br><small>${slip.occupiedBy.loa}ft / ${slip.occupiedBy.beam}ft</small>`;
+            div.innerHTML = `
+                <div class="slip-title">Slip ${slip.id}</div>
+                <div class="docked-vessel">
+                    <strong>🛥️ ${slip.occupiedBy.name}</strong><br>
+                    <small>${slip.occupiedBy.loa}' LOA / ${slip.occupiedBy.beam}' Beam</small>
+                </div>
+            `;
         } else {
-            div.innerHTML = `<strong>Slip ${slip.id}</strong><br><small>Max: ${slip.maxLoa}ft x ${slip.maxBeam}ft</small>`;
+            div.innerHTML = `
+                <div class="slip-title">Slip ${slip.id}</div>
+                <div class="slip-info">Max LOA: ${slip.maxLoa}ft<br>Max Beam: ${slip.maxBeam}ft</div>
+            `;
         }
 
         div.addEventListener('dragover', (e) => e.preventDefault());
@@ -128,15 +143,13 @@ function assignBoatToSlip(boatId, slipId) {
             render();
             checkWinCondition();
         } else {
-            alert(`Vessel too large for Slip ${slip.id}! (Needs max ${boat.loa}ft LOA / ${boat.beam}ft Beam)`);
+            alert(`⚠️ Vessel too large for Slip ${slip.id}!\nNeeds max ${boat.loa}ft LOA / ${boat.beam}ft Beam.`);
         }
     }
 }
 
 function checkWinCondition() {
     if (gameState.incomingQueue.length === 0) {
-        // Clear boats from slips for the next day, or let them stay docked. 
-        // For simplicity, let's trigger end of day summary early if all boats are docked!
         endDay(true);
     }
 }
@@ -148,9 +161,9 @@ function endDay(success = false) {
     
     const unparked = gameState.incomingQueue.length;
     if (success || unparked === 0) {
-        summary.innerHTML = `🎉 <strong>Great job, Dockmaster!</strong> All vessels safely berthed. Earned daily revenue!`;
+        summary.innerHTML = `🎉 <strong>Great job, Dockmaster!</strong> All vessels safely berthed before sunset. Daily revenue collected!`;
     } else {
-        summary.innerHTML = `⚠️ <strong>Day Ended!</strong> ${unparked} vessels were left unparked on the queue. Efficiency penalty applied.`;
+        summary.innerHTML = `⚠️ <strong>Sunset Reached!</strong> ${unparked} vessels were left unparked in the queue.`;
     }
     
     modal.classList.remove('hidden');
@@ -167,7 +180,7 @@ function buySlip() {
             occupiedBy: null
         });
         renderHUD();
-        alert(`Successfully purchased Slip #${newId}!`);
+        alert(`Successfully constructed Slip #${newId}!`);
     } else {
         alert("Not enough funds! Earn more by docking boats.");
     }
@@ -175,7 +188,6 @@ function buySlip() {
 
 function startNextDay() {
     gameState.day++;
-    // Clear slips for the new day
     gameState.slips.forEach(s => s.occupiedBy = null);
     gameState.isPaused = false;
     document.getElementById('shop-modal').classList.add('hidden');
