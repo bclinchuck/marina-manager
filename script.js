@@ -16,13 +16,11 @@ let gameState = {
 };
 
 let canvas, ctx;
-let draggedBoat = null;
 
 window.onload = () => {
     canvas = document.getElementById('marina-canvas');
     ctx = canvas.getContext('2d');
 
-    // Canvas Drag and Drop setup
     canvas.addEventListener('dragover', (e) => e.preventDefault());
     canvas.addEventListener('drop', handleCanvasDrop);
 
@@ -86,7 +84,6 @@ function initDay() {
 
 function gameLoop() {
     if (!gameState.isPaused) {
-        // Slower time progression as requested (0.07 speed)
         gameState.timeMinutes += 0.07; 
         
         const currentTime = Math.floor(gameState.timeMinutes);
@@ -165,15 +162,13 @@ function renderIncoming() {
     });
 }
 
-// Draw the top-down 2D marina environment on Canvas
 function drawMarinaCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Draw Water Background with wave pattern look
+    // 1. Water Background
     ctx.fillStyle = '#0284c7';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw subtle water ripples
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 2;
     for (let i = 0; i < canvas.height; i += 40) {
@@ -183,23 +178,21 @@ function drawMarinaCanvas() {
         ctx.stroke();
     }
 
-    // 2. Draw Main Wooden Pier (Central Walkway)
+    // 2. Main Wooden Pier
     ctx.fillStyle = '#78350f';
     ctx.fillRect(30, 40, 30, 460);
     ctx.strokeStyle = '#451a03';
     ctx.lineWidth = 3;
     ctx.strokeRect(30, 40, 30, 460);
 
-    // 3. Draw Slips
+    // 3. Slips
     gameState.slips.forEach(slip => {
-        // Draw wooden slip pier border
         ctx.fillStyle = slip.occupiedBy ? '#064e3b' : '#92400e';
         ctx.fillRect(slip.x, slip.y, slip.w, slip.h);
         ctx.strokeStyle = '#451a03';
         ctx.lineWidth = 2;
         ctx.strokeRect(slip.x, slip.y, slip.w, slip.h);
 
-        // Slip Label & Specs
         ctx.fillStyle = '#fef3c7';
         ctx.font = 'bold 11px sans-serif';
         ctx.fillText(`Slip ${slip.id}`, slip.x + 8, slip.y + 16);
@@ -208,9 +201,7 @@ function drawMarinaCanvas() {
         ctx.fillStyle = '#fde68a';
         ctx.fillText(`Max: ${slip.maxLoa}' / ${slip.maxBeam}'`, slip.x + 8, slip.y + 32);
 
-        // If Occupied, draw boat and countdown inside the slip
         if (slip.occupiedBy) {
-            // Draw mini boat shape inside slip
             ctx.fillStyle = '#e2e8f0';
             ctx.fillRect(slip.x + slip.w - 35, slip.y + 10, 28, 30);
             
@@ -224,7 +215,7 @@ function drawMarinaCanvas() {
                 const timeLeft = (slip.occupiedBy.dockedAt + slip.occupiedBy.stayDuration) - currentTime;
                 const hoursLeft = Math.floor(timeLeft / 60);
                 const minsLeft = Math.max(0, Math.floor(timeLeft % 60));
-                stayText = `${hours}h ${minsLeft}m`;
+                stayText = `${hoursLeft}h ${minsLeft}m`;
             }
             ctx.fillStyle = '#38bdf8';
             ctx.fillText(stayText, slip.x + slip.w - 33, slip.y + 34);
@@ -239,7 +230,6 @@ function handleCanvasDrop(e) {
     const dropX = e.clientX - rect.left;
     const dropY = e.clientY - rect.top;
 
-    // Find which slip was clicked/dropped on
     const targetSlip = gameState.slips.find(slip => 
         dropX >= slip.x && dropX <= slip.x + slip.w &&
         dropY >= slip.y && dropY <= slip.y + slip.h
@@ -309,7 +299,6 @@ function buySlip() {
     if (gameState.money >= 500) {
         gameState.money -= 500;
         const newId = gameState.slips.length + 1;
-        // Place new slip neatly below the previous ones
         const lastSlip = gameState.slips[gameState.slips.length - 1];
         gameState.slips.push({
             id: newId,
