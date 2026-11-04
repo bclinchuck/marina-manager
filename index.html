@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marina Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Top Status Bar -->
+        <header id="hud">
+            <div class="hud-item">Day: <span id="day-counter">1</span></div>
+            <div class="hud-item">Time: <span id="clock">08:00 AM</span></div>
+            <div class="hud-item">Money: $<span id="money">1000</span></div>
+            <div class="hud-item">Queue: <span id="queue-count">0</span> boats</div>
+        </header>
+
+        <!-- Main Game Area -->
+        <main id="main-layout">
+            <!-- Incoming Queue / Radar -->
+            <section id="incoming-panel">
+                <h2>Incoming Arrivals</h2>
+                <div id="incoming-list"></div>
+            </section>
+
+            <!-- Dock Grid -->
+            <section id="dock-panel">
+                <h2>Marina Slips</h2>
+                <div id="slips-grid"></div>
+            </section>
+        </main>
+
+        <!-- End of Day / Shop Modal -->
+        <div id="shop-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>End of Day Summary</h2>
+                <p id="summary-text"></p>
+                <h3>Dockmaster Upgrade Shop</h3>
+                <div id="shop-items">
+                    <button id="buy-slip-btn" onclick="buySlip()">Expand Slip: Buy New Slip ($500)</button>
+                </div>
+                <button id="next-day-btn" onclick="startNextDay()">Start Next Day</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
