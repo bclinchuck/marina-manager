@@ -1,24 +1,25 @@
 let gameState = {
     day: 1,
     money: 1000,
-    timeMinutes: 480,       // 8:00 AM
-    maxTimeMinutes: 1200,   // 8:00 PM
+    timeMinutes: 480,       // 8:00 AM in minutes
+    maxTimeMinutes: 1200,   // 8:00 PM in minutes
     dayBoatsPool: [],       
     incomingQueue: [],      
     slips: [
-        { id: 1, x: 80, y: 80, w: 90, h: 50, maxLoa: 50, maxBeam: 16, occupiedBy: null },
-        { id: 2, x: 80, y: 150, w: 90, h: 50, maxLoa: 50, maxBeam: 16, occupiedBy: null },
-        { id: 3, x: 80, y: 220, w: 90, h: 50, maxLoa: 40, maxBeam: 14, occupiedBy: null },
-        { id: 4, x: 80, y: 290, w: 90, h: 50, maxLoa: 40, maxBeam: 14, occupiedBy: null },
-        { id: 5, x: 80, y: 360, w: 90, h: 50, maxLoa: 55, maxBeam: 18, occupiedBy: null }
+        { id: 1, x: 150, y: 35, w: 140, h: 65, maxLoa: 50, maxBeam: 16, occupiedBy: null },
+        { id: 2, x: 150, y: 115, w: 140, h: 65, maxLoa: 50, maxBeam: 16, occupiedBy: null },
+        { id: 3, x: 150, y: 195, w: 140, h: 65, maxLoa: 40, maxBeam: 14, occupiedBy: null },
+        { id: 4, x: 150, y: 275, w: 140, h: 65, maxLoa: 40, maxBeam: 14, occupiedBy: null },
+        { id: 5, x: 150, y: 355, w: 140, h: 65, maxLoa: 55, maxBeam: 18, occupiedBy: null }
     ],
     isPaused: false
 };
 
 let canvas, ctx;
 
-window.onload = () => {
+window.addEventListener('DOMContentLoaded', () => {
     canvas = document.getElementById('marina-canvas');
+    if (!canvas) return;
     ctx = canvas.getContext('2d');
 
     canvas.addEventListener('dragover', (e) => e.preventDefault());
@@ -26,56 +27,37 @@ window.onload = () => {
 
     initDay();
     requestAnimationFrame(gameLoop);
-};
+});
 
 function initDay() {
     gameState.timeMinutes = 480;
-    const totalBoats = 4 + gameState.day * 2;
-    const maxOvernight = gameState.slips.length;
-    let overnightCount = Math.min(Math.floor(Math.random() * 2) + 2 + Math.floor(gameState.day / 2), maxOvernight);
-    let shortStayCount = totalBoats - overnightCount;
-
+    const totalBoats = 4 + (gameState.day * 2);
     gameState.dayBoatsPool = [];
     gameState.incomingQueue = [];
     
-    // Generate Overnight
-    for (let i = 0; i < overnightCount; i++) {
-        const arrivalTime = (i === 0) ? 480 : 480 + Math.floor(Math.random() * 360);
-        const boat = {
-            id: `boat-overnight-${gameState.day}-${i}`,
-            name: `Vessel ${i + 1}`,
-            loa: Math.floor(Math.random() * 15) + 30,
-            beam: Math.floor(Math.random() * 4) + 11,
-            fee: 200 + gameState.day * 25,
-            arrivalTime: arrivalTime,
-            isShortStay: false,
-            stayDuration: 1200 - arrivalTime,
-            dockedAt: null,
-            color: '#38bdf8'
-        };
-        if (arrivalTime === 480) gameState.incomingQueue.push(boat);
-        else gameState.dayBoatsPool.push(boat);
-    }
+    for (let i = 0; i < totalBoats; i++) {
+        const arrivalTime = (i < 2) ? 480 : 480 + Math.floor(Math.random() * 360);
+        const isShortStay = Math.random() < 0.5;
+        const stayDuration = isShortStay ? Math.floor(Math.random() * 150) + 120 : (1200 - arrivalTime);
 
-    // Generate Short Stay
-    for (let j = 0; j < shortStayCount; j++) {
-        const arrivalTime = (overnightCount === 0 && j === 0) ? 480 : 480 + Math.floor(Math.random() * 420);
-        const stayDuration = Math.floor(Math.random() * 150) + 120;
-        
         const boat = {
-            id: `boat-short-${gameState.day}-${j}`,
-            name: `Vessel ${overnightCount + j + 1}`,
+            id: `boat-${gameState.day}-${i}`,
+            name: `Vessel ${i + 1}`,
             loa: Math.floor(Math.random() * 15) + 25,
             beam: Math.floor(Math.random() * 4) + 10,
-            fee: 150 + gameState.day * 25,
+            fee: 150 + (gameState.day * 25),
             arrivalTime: arrivalTime,
-            isShortStay: true,
+            isShortStay: isShortStay,
             stayDuration: stayDuration,
             dockedAt: null,
-            color: '#fbbf24'
+            color: isShortStay ? '#fbbf24' : '#38bdf8'
         };
-        if (arrivalTime === 480) gameState.incomingQueue.push(boat);
-        else gameState.dayBoatsPool.push(boat);
+
+        if (arrivalTime === 480) {
+            gameState.incomingQueue.push(boat);
+        } else {
+            gameState.dayBoatsPool.push(boat);
+        }
     }
 
     gameState.dayBoatsPool.sort((a, b) => a.arrivalTime - b.arrivalTime);
@@ -163,13 +145,14 @@ function renderIncoming() {
 }
 
 function drawMarinaCanvas() {
+    if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Water Background
+    // 1. Water Background with ripple lines
     ctx.fillStyle = '#0284c7';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.lineWidth = 2;
     for (let i = 0; i < canvas.height; i += 40) {
         ctx.beginPath();
@@ -178,47 +161,73 @@ function drawMarinaCanvas() {
         ctx.stroke();
     }
 
-    // 2. Main Wooden Pier
+    // 2. Main Wooden Pier Walkway
     ctx.fillStyle = '#78350f';
-    ctx.fillRect(30, 40, 30, 460);
+    ctx.fillRect(80, 20, 45, 480);
     ctx.strokeStyle = '#451a03';
     ctx.lineWidth = 3;
-    ctx.strokeRect(30, 40, 30, 460);
+    ctx.strokeRect(80, 20, 45, 480);
 
-    // 3. Slips
+    // 3. Slips & Rendered Boats
     gameState.slips.forEach(slip => {
-        ctx.fillStyle = slip.occupiedBy ? '#064e3b' : '#92400e';
+        // Draw finger pier dock structure
+        ctx.fillStyle = '#92400e';
         ctx.fillRect(slip.x, slip.y, slip.w, slip.h);
         ctx.strokeStyle = '#451a03';
         ctx.lineWidth = 2;
         ctx.strokeRect(slip.x, slip.y, slip.w, slip.h);
 
+        // Slip text info
         ctx.fillStyle = '#fef3c7';
         ctx.font = 'bold 11px sans-serif';
-        ctx.fillText(`Slip ${slip.id}`, slip.x + 8, slip.y + 16);
+        ctx.fillText(`Slip ${slip.id}`, slip.x + 10, slip.y + 20);
         
         ctx.font = '10px sans-serif';
         ctx.fillStyle = '#fde68a';
-        ctx.fillText(`Max: ${slip.maxLoa}' / ${slip.maxBeam}'`, slip.x + 8, slip.y + 32);
+        ctx.fillText(`Max: ${slip.maxLoa}' / ${slip.maxBeam}'`, slip.x + 10, slip.y + 36);
 
+        // If Occupied, draw top-down boat sprite graphic inside the slip!
         if (slip.occupiedBy) {
-            ctx.fillStyle = '#e2e8f0';
-            ctx.fillRect(slip.x + slip.w - 35, slip.y + 10, 28, 30);
-            
-            ctx.fillStyle = '#0f172a';
-            ctx.font = 'bold 9px sans-serif';
-            ctx.fillText(slip.occupiedBy.name, slip.x + slip.w - 33, slip.y + 22);
+            const bx = slip.x + 55;
+            const by = slip.y + 8;
+            const bw = 75;
+            const bh = 48;
 
-            let stayText = '🌙 Night';
+            // Boat Hull Base (Yacht shape)
+            ctx.fillStyle = '#e2e8f0';
+            ctx.beginPath();
+            ctx.roundRect(bx, by, bw, bh, [6, 16, 16, 6]);
+            ctx.fill();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Cabin / Superstructure
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(bx + 20, by + 10, 35, 28);
+            ctx.strokeStyle = '#475569';
+            ctx.strokeRect(bx + 20, by + 10, 35, 28);
+
+            // Windshield / Bridge Windows
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(bx + 45, by + 12, 8, 24);
+
+            // Boat Name & Countdown Tag
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 10px sans-serif';
+            ctx.fillText(slip.occupiedBy.name, bx + 22, by + 58);
+
+            let stayText = '🌙 Overnight';
             if (slip.occupiedBy.isShortStay) {
                 const currentTime = Math.floor(gameState.timeMinutes);
                 const timeLeft = (slip.occupiedBy.dockedAt + slip.occupiedBy.stayDuration) - currentTime;
                 const hoursLeft = Math.floor(timeLeft / 60);
                 const minsLeft = Math.max(0, Math.floor(timeLeft % 60));
-                stayText = `${hoursLeft}h ${minsLeft}m`;
+                stayText = `⏱️ ${hoursLeft}h ${minsLeft}m`;
             }
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillText(stayText, slip.x + slip.w - 33, slip.y + 34);
+            ctx.fillStyle = '#0284c7';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillText(stayText, bx + 22, by + 70);
         }
     });
 }
@@ -231,8 +240,7 @@ function handleCanvasDrop(e) {
     const dropY = e.clientY - rect.top;
 
     const targetSlip = gameState.slips.find(slip => 
-        dropX >= slip.x && dropX <= slip.x + slip.w &&
-        dropY >= slip.y && dropY <= slip.y + slip.h
+        dropX >= slip.x && dropX <= slip.x + slip.w && dropY >= slip.y && dropY <= slip.y + slip.h
     );
 
     if (targetSlip) {
@@ -303,9 +311,9 @@ function buySlip() {
         gameState.slips.push({
             id: newId,
             x: lastSlip.x,
-            y: lastSlip.y + 70,
-            w: 90,
-            h: 50,
+            y: lastSlip.y + 80,
+            w: 140,
+            h: 65,
             maxLoa: 55,
             maxBeam: 18,
             occupiedBy: null
