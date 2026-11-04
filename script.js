@@ -3,8 +3,8 @@ let gameState = {
     money: 1000,
     timeMinutes: 480,       // 8:00 AM in minutes
     maxTimeMinutes: 1200,   // 8:00 PM in minutes
-    dayBoatsPool: [],       // All boats scheduled to arrive today
-    incomingQueue: [],      // Boats currently waiting for a slip
+    dayBoatsPool: [],       
+    incomingQueue: [],      
     slips: [
         { id: 1, maxLoa: 50, maxBeam: 16, occupiedBy: null },
         { id: 2, maxLoa: 50, maxBeam: 16, occupiedBy: null },
@@ -20,36 +20,56 @@ window.onload = () => {
 
 function initDay() {
     gameState.timeMinutes = 480;
-    const boatCount = 4 + gameState.day * 2;
+    
+    // Total boats for the day increases with day count
+    const totalBoats = 4 + gameState.day * 2;
+    
+    // Constraint: Never generate more overnight boats than we currently have slips,
+    // ensuring the puzzle is always physically solvable. The rest will be short-stay!
+    const maxOvernight = gameState.slips.length;
+    let overnightCount = Math.min(Math.floor(Math.random() * 2) + 2 + Math.floor(gameState.day / 2), maxOvernight);
+    let shortStayCount = totalBoats - overnightCount;
+
     gameState.dayBoatsPool = [];
     gameState.incomingQueue = [];
     
-    for (let i = 0; i < boatCount; i++) {
-        // Ensure the first 2 boats arrive immediately at 8:00 AM (480 mins), 
-        // and the rest arrive staggered up to 3:00 PM (900 mins)
-        const arrivalTime = (i < 2) ? 480 : 480 + Math.floor(Math.random() * 420);
-        
-        const isShortStay = Math.random() < 0.5;
-        const stayDuration = isShortStay ? Math.floor(Math.random() * 120) + 120 : (1200 - arrivalTime);
-
+    // Generate Overnight Boats
+    for (let i = 0; i < overnightCount; i++) {
+        const arrivalTime = (i === 0) ? 480 : 480 + Math.floor(Math.random() * 360);
         const boat = {
-            id: `boat-${gameState.day}-${i}`,
-            name: `Vessel ${i + 1}`,
-            loa: Math.floor(Math.random() * 25) + 25, // 25ft to 50ft
-            beam: Math.floor(Math.random() * 6) + 10,  // 10ft to 15ft
-            fee: 150 + gameState.day * 25,
+            id: `boat-overnight-${gameState.day}-${i}`,
+            name: `Vessel ${i + 1} (Night)`,
+            loa: Math.floor(Math.random() * 20) + 25,
+            beam: Math.floor(Math.random() * 5) + 10,
+            fee: 200 + gameState.day * 25,
             arrivalTime: arrivalTime,
-            stayDuration: stayDuration,
-            isShortStay: isShortStay,
+            isShortStay: false,
+            stayDuration: 1200 - arrivalTime,
             dockedAt: null
         };
+        if (arrivalTime === 480) gameState.incomingQueue.push(boat);
+        else gameState.dayBoatsPool.push(boat);
+    }
 
-        // If they arrive at 8:00 AM, put them straight into the visible queue!
-        if (arrivalTime === 480) {
-            gameState.incomingQueue.push(boat);
-        } else {
-            gameState.dayBoatsPool.push(boat);
-        }
+    // Generate Short Stay Boats
+    for (let j = 0; j < shortStayCount; j++) {
+        const arrivalTime = (overnightCount === 0 && j === 0) ? 480 : 480 + Math.floor(Math.random() * 420);
+        // Short stay lasts between 2 to 4.5 hours (120 to 270 minutes)
+        const stayDuration = Math.floor(Math.random() * 150) + 120;
+        
+        const boat = {
+            id: `boat-short-${gameState.day}-${j}`,
+            name: `Vessel ${overnightCount + j + 1} (Transient)`,
+            loa: Math.floor(Math.random() * 20) + 25,
+            beam: Math.floor(Math.random() * 5) + 10,
+            fee: 150 + gameState.day * 25,
+            arrivalTime: arrivalTime,
+            isShortStay: true,
+            stayDuration: stayDuration,
+            dockedAt: null
+        };
+        if (arrivalTime === 480) gameState.incomingQueue.push(boat);
+        else gameState.dayBoatsPool.push(boat);
     }
 
     // Sort pool by arrival time
@@ -59,7 +79,6 @@ function initDay() {
 
 function gameLoop() {
     if (!gameState.isPaused) {
-        // Advance time (0.15 minutes per frame for a smooth pace)
         gameState.timeMinutes += 0.15; 
         
         const currentTime = Math.floor(gameState.timeMinutes);
@@ -75,13 +94,12 @@ function gameLoop() {
             if (slip.occupiedBy && slip.occupiedBy.isShortStay) {
                 const timeSpent = currentTime - slip.occupiedBy.dockedAt;
                 if (timeSpent >= slip.occupiedBy.stayDuration) {
-                    // Boat departs, freeing up the slip!
-                    slip.occupiedBy = null;
+                    slip.occupiedBy = null; // Vessel departs, freeing slip
                 }
             }
         });
 
-        // 3. Check win/loss conditions at end of day (8:00 PM)
+        // 3. Check end of day (8:00 PM)
         if (gameState.timeMinutes >= gameState.maxTimeMinutes) {
             checkEndOfDay();
         }
@@ -121,7 +139,7 @@ function renderIncoming() {
         card.className = 'boat-card';
         card.draggable = true;
         
-        const stayBadge = boat.isShortStay ? `⏱️ Short Stay (~${Math.round(boat.stayDuration/60)}h)` : `🌙 Overnight`;
+        const stayBadge = boat.isShortStay ? `⏱️ Transient (~${Math.round(boat.stayDuration/60)}h stay)` : `🌙 Overnight Stay`;
         
         card.innerHTML = `
             <div class="boat-header">
@@ -150,13 +168,21 @@ function renderSlips() {
         div.className = `slip ${slip.occupiedBy ? 'occupied' : ''}`;
         
         if (slip.occupiedBy) {
-            const stayText = slip.occupiedBy.isShortStay ? '⏱️ Short Stay' : '🌙 Overnight';
+            let stayDetails = '🌙 Overnight';
+            if (slip.occupiedBy.isShortStay) {
+                const currentTime = Math.floor(gameState.timeMinutes);
+                const timeLeft = (slip.occupiedBy.dockedAt + slip.occupiedBy.stayDuration) - currentTime;
+                const hoursLeft = Math.floor(timeLeft / 60);
+                const minsLeft = Math.max(0, Math.floor(timeLeft % 60));
+                stayDetails = `⏱️ Departs in ${hoursLeft}h ${minsLeft}m`;
+            }
+
             div.innerHTML = `
                 <div class="slip-title">Slip ${slip.id}</div>
                 <div class="docked-vessel">
                     <strong>🛥️ ${slip.occupiedBy.name}</strong><br>
                     <small>${slip.occupiedBy.loa}' LOA / ${slip.occupiedBy.beam}' Beam</small><br>
-                    <span style="font-size: 0.7rem; color: #fde047;">${stayText}</span>
+                    <span style="font-size: 0.7rem; color: #fde047; font-weight: bold;">${stayDetails}</span>
                 </div>
             `;
         } else {
@@ -198,7 +224,6 @@ function assignBoatToSlip(boatId, slipId) {
 }
 
 function checkWinCondition() {
-    // If all boats for the day have arrived AND been successfully docked (and none left in queue)
     if (gameState.dayBoatsPool.length === 0 && gameState.incomingQueue.length === 0) {
         endDay(true);
     }
@@ -213,7 +238,7 @@ function checkEndOfDay() {
     if (unparked === 0) {
         summary.innerHTML = `🎉 <strong>Flawless Dockmaster Operations!</strong> All vessels successfully handled before sunset. Daily revenue collected!`;
     } else {
-        summary.innerHTML = `⚠️ <strong>Sunset Reached!</strong> ${unparked} vessels were left unparked or missed. Efficiency penalty applied.`;
+        summary.innerHTML = `⚠️ <strong>Sunset Reached!</strong> ${unparked} vessels were left unparked in the queue.`;
     }
     
     modal.classList.remove('hidden');
